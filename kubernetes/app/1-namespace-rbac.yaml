@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: mern-app
+  labels:
+    # Enforce Pod Security Standards (Restricted profile)
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: mern-service-account
+  namespace: mern-app
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  namespace: mern-app
+  name: mern-app-role
+rules:
+# Least-privilege RBAC: Can only view essential resources within its own namespace
+- apiGroups: [""]
+  resources: ["pods", "services", "endpoints", "secrets", "configmaps"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: mern-app-rolebinding
+  namespace: mern-app
+subjects:
+- kind: ServiceAccount
+  name: mern-service-account
+  namespace: mern-app
+roleRef:
+  kind: Role
+  name: mern-app-role
+  apiGroup: rbac.authorization.k8s.io

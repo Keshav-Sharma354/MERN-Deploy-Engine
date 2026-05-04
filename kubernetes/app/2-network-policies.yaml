@@ -1,0 +1,106 @@
+# 1. Default Deny All (Zero Trust Network)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: mern-app
+spec:
+  podSelector: {}
+  policyTypes:
+  - Ingress
+  - Egress
+---
+# 2. Allow Frontend to reach out to the world (for web access) and connect to Backend
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-frontend-egress
+  namespace: mern-app
+spec:
+  podSelector:
+    matchLabels:
+      app: frontend
+  policyTypes:
+  - Egress
+  - Ingress
+  ingress:
+  - from:
+    - namespaceSelector: {} # Allow generic ingress routes to UI
+    ports:
+    - protocol: TCP
+      port: 5173
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+          app: backend
+    ports:
+    - protocol: TCP
+      port: 5050
+  # Allow DNS egress
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+    ports:
+    - protocol: UDP
+      port: 53
+---
+# 3. Allow Backend to receive from Frontend and connect to MongoDB
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-backend-traffic
+  namespace: mern-app
+spec:
+  podSelector:
+    matchLabels:
+      app: backend
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: frontend
+    ports:
+    - protocol: TCP
+      port: 5050
+  egress:
+  - to:
+    - podSelector:
+        matchLabels:
+          app: mongodb
+    ports:
+    - protocol: TCP
+      port: 27017
+  # Allow DNS resolution
+  - to:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: kube-system
+    ports:
+    - protocol: UDP
+      port: 53
+---
+# 4. Allow MongoDB to only be accessed by Backend
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-mongo-ingress
+  namespace: mern-app
+spec:
+  podSelector:
+    matchLabels:
+      app: mongodb
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          app: backend
+    ports:
+    - protocol: TCP
+      port: 27017

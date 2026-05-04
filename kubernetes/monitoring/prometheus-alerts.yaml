@@ -1,0 +1,41 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: mern-app-alerts
+  namespace: monitoring # Typically where kube-prometheus-stack is installed
+  labels:
+    release: prometheus # Needs to match your Prometheus operator selector
+spec:
+  groups:
+  - name: mern-security-anomalies
+    rules:
+    # Alert if CPU usage spikes (Potential crypto miner or DoS)
+    - alert: HighCpuUsageAnomaly
+      expr: sum(rate(container_cpu_usage_seconds_total{namespace="mern-app"}[5m])) by (pod) > 0.8
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: "High CPU usage detected in pod {{ $labels.pod }}"
+        description: "Pod {{ $labels.pod }} is consuming over 80% CPU for more than 5 minutes. Investigate for anomalies."
+
+    # Alert if a pod restarts frequently (CrashLoopBackOff anomaly)
+    - alert: PodFrequentRestarts
+      expr: increase(kube_pod_container_status_restarts_total{namespace="mern-app"}[15m]) > 3
+      for: 5m
+      labels:
+        severity: critical
+      annotations:
+        summary: "Pod {{ $labels.pod }} is crash looping"
+        description: "Pod {{ $labels.pod }} has restarted multiple times in the last 15 minutes."
+
+    # Alert if there are excessive 5xx HTTP Errors on backend (Likely DoS or exploitation attempt)
+    - alert: HighErrorRate
+      # Assuming your app exposes metrics for HTTP requests. If not, this is a placeholder standard metric.
+      expr: rate(http_requests_total{namespace="mern-app", status=~"5.."}[5m]) > 0.05
+      for: 1m
+      labels:
+        severity: critical
+      annotations:
+        summary: "High HTTP 5xx error rate detected"
+        description: "More than 5% of requests to the backend are returning 5xx errors."
