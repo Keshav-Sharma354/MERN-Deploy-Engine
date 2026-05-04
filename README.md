@@ -2,7 +2,28 @@
 
 Welcome to the **MERN Deploy Engine**, a modern, containerized full-stack application leveraging the MERN stack (MongoDB, Express.js, React, Node.js). 
 
-As a DevOps Engineer, I've transformed this standard MERN application into a robust, shift-left **DevSecOps** environment. This repository doesn't just run code—it ensures that every commit is automatically tested, scanned for vulnerabilities, and validated against strict security benchmarks before it's allowed anywhere near production.
+## 🎯 Project Overview
+**Problem Solved:** Transitioned a standard web application into an enterprise-grade environment by implementing a deeply secure CI/CD pipeline with automated vulnerability scanning, proactive infrastructure validation, and runtime container security monitoring.
+
+This repository doesn't just run code—it ensures that every commit is automatically tested, scanned for vulnerabilities, and validated against strict security benchmarks before it is allowed anywhere near production.
+
+## 🗺️ Architecture Flow
+
+The complete deployment lifecycle follows a strict shift-left DevSecOps progression:
+
+**Developer → GitHub → CI/CD Pipeline → Security Scans (SAST/SCA/DAST/IaC) → Docker Containers → Kubernetes / AWS Infrastructure**
+
+```mermaid
+graph LR
+    A[Developer] -->|Pushes Code| B(GitHub)
+    B -->|Triggers Action| C{CI/CD Pipeline}
+    C -->|SonarQube| D1[SAST Scan]
+    C -->|Trivy| D2[SCA Scan]
+    C -->|Checkov| D3[IaC Scan]
+    D1 & D2 & D3 -->|If Passed| E[Docker Compose Build]
+    E -->|OWASP ZAP| F[DAST Scan]
+    F -->|Deploy| G[(Kubernetes / AWS)]
+```
 
 ---
 
