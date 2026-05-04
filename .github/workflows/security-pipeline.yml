@@ -1,0 +1,104 @@
+name: DevSecOps CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  sast_sonarqube:
+    name: SAST using SonarQube
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Shallow clones should be disabled for a better relevancy of analysis
+      
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v4
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+
+      - name: SonarQube Quality Gate Check
+        uses: SonarSource/sonarqube-quality-gate-action@v1
+        timeout-minutes: 5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+
+  dependency_scanning:
+    name: Dependency Vulnerability Scanning (SCA)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner for Backend
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: './mern/backend'
+          format: 'table'
+          # Fail builds automatically if vulnerabilities exceed threshold (CRITICAL/HIGH)
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'library'
+          severity: 'CRITICAL,HIGH'
+          output: 'trivy-backend-report.txt'
+
+      - name: Run Trivy vulnerability scanner for Frontend
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: './mern/frontend'
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'library'
+          severity: 'CRITICAL,HIGH'
+          output: 'trivy-frontend-report.txt'
+          
+      - name: Upload Dependency Security Reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dependency-reports
+          path: |
+            trivy-backend-report.txt
+            trivy-frontend-report.txt
+
+  dast_owasp_zap:
+    name: DAST using OWASP ZAP
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Start Application using Docker Compose
+        run: docker compose up -d
+        
+      - name: Wait for Application to be ready
+        run: |
+          echo "Waiting for frontend to be up on port 5173..."
+          timeout 60 bash -c 'until curl -s http://localhost:5173 > /dev/null; do sleep 5; done' || echo "Frontend didn't become available in time, but proceeding with scan anyway"
+          echo "Waiting for backend to be up on port 5050..."
+          timeout 60 bash -c 'until curl -s http://localhost:5050 > /dev/null; do sleep 5; done' || echo "Backend didn't become available in time, but proceeding with scan anyway"
+          
+      - name: OWASP ZAP Full Scan
+        uses: zaproxy/action-full-scan@v0.12.0
+        with:
+          target: 'http://localhost:5173'
+          # Fail builds automatically if vulnerabilities exceed threshold 
+          fail_action: true 
+          
+      - name: Upload ZAP Security Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: zap-dast-report
+          path: |
+            zap_report.html
+            *.html
