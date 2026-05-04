@@ -2,9 +2,9 @@ name: DevSecOps CI/CD Pipeline
 
 on:
   push:
-    branches: [ "main", "master" ]
+    branches: [ "main", "master", "production" ]
   pull_request:
-    branches: [ "main", "master" ]
+    branches: [ "main", "master", "production" ]
 
 jobs:
   sast_sonarqube:
@@ -73,6 +73,10 @@ jobs:
   dast_owasp_zap:
     name: DAST using OWASP ZAP
     runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+      contents: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
