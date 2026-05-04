@@ -62,6 +62,31 @@ To make the pipeline function correctly in your own fork, you will need to popul
 
 ---
 
+## ☸️ Advanced Kubernetes DevSecOps Cluster
+
+In addition to Docker development, this project ships with a fully hardened Kubernetes directory (`kubernetes/`) representing production-ready deployments.
+
+### Implemented K8s Security Controls 🛡️
+1. **Pod Security Standards:** Implementations of `#runAsNonRoot` and total capability drops across `backend`, `frontend`, and `mongodb` deployments.
+2. **Strict RBAC:** Principle-of-least-privilege `Role` and `RoleBinding` to lock down container permissions.
+3. **Zero-Trust Network Policies:** Traffic is default-denied across the namespace. We enforce whitelist-only transit (`frontend` -> `backend` -> `mongodb`).
+4. **Runtime Security with Falco:** Helm values configured (`kubernetes/security/falco-values.yaml`) to monitor kernel syscalls and alert on anomalous behaviors (e.g., unexpected shell executions, rogue database access, files written into read-only mounts).
+5. **Prometheus Monitoring + Alertmanager:** Custom `PrometheusRule` thresholds (`kubernetes/monitoring/prometheus-alerts.yaml`) deployed to monitor for CPU anomalies, crash loop backoffs, and sustained HTTP 500 error floods.
+
+**Deployment Instructions (Minikube / k3s / EKS):**
+```bash
+# 1. Apply Namespace and strict RBAC
+kubectl apply -f kubernetes/app/1-namespace-rbac.yaml
+
+# 2. Block all unknown traffic via Network Policies
+kubectl apply -f kubernetes/app/2-network-policies.yaml
+
+# 3. Deploy the Hardened Application Set
+kubectl apply -f kubernetes/app/3-deployments.yaml
+```
+
+---
+
 ## 🛠️ Legacy Manual Docker Setup
 
 If you prefer spinning up containers manually instead of using Docker Compose:

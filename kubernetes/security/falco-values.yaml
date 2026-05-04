@@ -1,0 +1,37 @@
+customRules:
+  custom-rules.yaml: |-
+    - rule: Terminal shell in container
+      desc: A shell was spawned by a program in a container with an attached terminal.
+      condition: >
+        spawned_process and container
+        and shell_procs and proc.tty != 0
+      output: >
+        A shell was spawned in a container with an attached terminal
+        (user=%user.name pod=%pod.name container_id=%container.id
+        image=%container.image.repository)
+      priority: WARNING
+      tags: [container, shell, mitre_execution]
+
+    - rule: Unexpected network connection to Mongo
+      desc: A pod other than the backend attempted to connect to MongoDB.
+      condition: >
+        inbound and fd.sip != "127.0.0.1" and fd.sport = 27017
+        and not k8s.pod.labels.app = "backend"
+        and not k8s.pod.labels.app = "mongodb"
+      output: >
+        Unexpected connection to MongoDB detected! 
+        (pod=%k8s.pod.name src_ip=%fd.sip dest_ip=%fd.c पर्यटकों)
+      priority: CRITICAL
+      tags: [network, database, mitre_lateral_movement]
+
+    - rule: Write to read-only app directory
+      desc: Detect writes to standard app directories.
+      condition: >
+        open_write and container and fd.name startswith "/app"
+      output: >
+        Unauthorized write to application directory 
+        (user=%user.name pod=%pod.name file=%fd.name)
+      priority: ERROR
+      tags: [filesystem, mitre_persistence]
+
+tty: true

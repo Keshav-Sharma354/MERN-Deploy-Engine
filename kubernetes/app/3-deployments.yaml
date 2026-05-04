@@ -1,0 +1,149 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: mern-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      serviceAccountName: mern-service-account
+      # Enforce Pod Security Standards 
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: backend
+        image: mern-backend:latest
+        imagePullPolicy: Never # Adjust based on your registry
+        ports:
+        - containerPort: 5050
+        env:
+        - name: MONGO_URI
+          value: mongodb://mongodb:27017/mydatabase
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+              - ALL
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: mern-app
+spec:
+  selector:
+    app: backend
+  ports:
+  - port: 5050
+    targetPort: 5050
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: mern-app
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: frontend
+  template:
+    metadata:
+      labels:
+        app: frontend
+    spec:
+      serviceAccountName: mern-service-account
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: frontend
+        image: mern-frontend:latest
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 5173
+        env:
+        - name: REACT_APP_API_URL
+          value: http://backend.mern-app.svc.cluster.local:5050
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+              - ALL
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: mern-app
+spec:
+  selector:
+    app: frontend
+  type: LoadBalancer 
+  ports:
+  - port: 5173
+    targetPort: 5173
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongodb
+  namespace: mern-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mongodb
+  template:
+    metadata:
+      labels:
+        app: mongodb
+    spec:
+      serviceAccountName: mern-service-account
+      securityContext:
+        runAsNonRoot: true
+        # MongoDB typically requires specific UID/GID mapping for persistence, but we enforce NonRoot
+        fsGroup: 999 
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: mongodb
+        image: mongo:latest
+        ports:
+        - containerPort: 27017
+        volumeMounts:
+        - name: mongo-data
+          mountPath: /data/db
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
+      volumes:
+      - name: mongo-data
+        emptyDir: {} # Switch to PersistentVolumeClaim for production
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongodb
+  namespace: mern-app
+spec:
+  selector:
+    app: mongodb
+  ports:
+  - port: 27017
+    targetPort: 27017
