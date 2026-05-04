@@ -108,3 +108,17 @@ jobs:
           path: |
             zap_report.html
             *.html
+
+  iac_scanning_checkov:
+    name: IaC Security Scanning (Checkov)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Run Checkov to scan Terraform
+        uses: bridgecrewio/checkov-action@master
+        with:
+          directory: ./terraform
+          framework: terraform
+          soft_fail: false # Enforce pipeline failure if open ports or insecure buckets are found
